@@ -79,20 +79,21 @@ app.get("/studios/:id", async (req, res) => {
 });
 
 // get updated info and update in mongodb
-import { ObjectId } from "mongodb";
 
 app.patch("/studios/:id", async (req, res) => {
   const { id } = req.params;
   const updatedStudio = req.body;
 
-  const result = await studiosCollection.updateOne(
+  const db = client.db("studiospace");
+  const studioCollection = db.collection("studios");
+
+  const result = await studioCollection.updateOne(
     { _id: new ObjectId(id) },
     { $set: updatedStudio }
   );
 
   res.send(result);
 });
-
 
 
 
