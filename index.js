@@ -77,6 +77,29 @@ app.get("/studios/:id", async (req, res) => {
 
   res.json(studio);
 });
+
+// get updated info and update in mongodb
+import { ObjectId } from "mongodb";
+
+app.patch("/studios/:id", async (req, res) => {
+  const { id } = req.params;
+  const updatedStudio = req.body;
+
+  const result = await studiosCollection.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: updatedStudio }
+  );
+
+  res.send(result);
+});
+
+
+
+
+
+
+
+
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
 })
