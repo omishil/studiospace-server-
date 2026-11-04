@@ -1,8 +1,7 @@
 import express from 'express'
 import 'dotenv/config'
 import cors from "cors";
-import { MongoClient } from 'mongodb';
-
+import { MongoClient, ObjectId } from 'mongodb';
 const app = express();
 
 app.use(cors({
@@ -49,6 +48,34 @@ app.get("/studios", async (req, res) => {
   const studios = await studioCollection.find().toArray();
 
   res.send(studios);
+});
+
+// for studio details
+// Get a single studio by ID
+app.get("/studios/:id", async (req, res) => {
+  const { id } = req.params;
+
+  // Check if the ID is valid
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({
+      message: "Invalid studio ID",
+    });
+  }
+
+  const db = client.db("studiospace");
+  const studioCollection = db.collection("studios");
+
+  const studio = await studioCollection.findOne({
+    _id: new ObjectId(id),
+  });
+
+  if (!studio) {
+    return res.status(404).json({
+      message: "Studio not found",
+    });
+  }
+
+  res.json(studio);
 });
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
