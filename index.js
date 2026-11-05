@@ -84,6 +84,33 @@ app.get("/studios", async (req, res) => {
 
   res.send(studios);
 });
+// Get studios listed by a specific owner
+app.get("/my-listings/:email", async (req, res) => {
+  try {
+    const { email } = req.params;
+
+    const db = client.db("studiospace");
+    const studioCollection = db.collection("studios");
+
+    const myStudios = await studioCollection
+      .find({
+        $or: [
+          { ownerEmail: email },
+          { hostEmail: email },
+        ],
+      })
+      .toArray();
+
+    res.send(myStudios);
+  } catch (error) {
+    res.status(500).send({
+      message: "Failed to fetch your studio listings",
+    });
+  }
+});
+
+
+
 
 // for studio details
 // Get a single studio by ID
@@ -129,7 +156,53 @@ app.patch("/studios/:id", async (req, res) => {
 
   res.send(result);
 });
+// delete a studio from listing
 
+app.delete("/studios/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.query;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({
+        message: "Invalid studio ID",
+      });
+    }
+
+    if (!email) {
+      return res.status(400).send({
+        message: "User email is required",
+      });
+    }
+
+    const db = client.db("studiospace");
+    const studioCollection = db.collection("studios");
+
+    const result = await studioCollection.deleteOne({
+      _id: new ObjectId(id),
+      $or: [
+        { ownerEmail: email },
+        { hostEmail: email },
+      ],
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send({
+        message: "Studio not found or you are not the owner",
+      });
+    }
+
+    res.send({
+      message: "Studio deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).send({
+      message: "Failed to delete studio",
+    });
+  }
+});
 
 
 
