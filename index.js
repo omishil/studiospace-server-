@@ -204,6 +204,135 @@ app.delete("/studios/:id", async (req, res) => {
   }
 });
 
+// Create a new booking
+app.post("/bookings", async (req, res) => {
+  try {
+    const {
+      studioId,
+      customerName,
+      customerEmail,
+      bookingDate,
+      startTime,
+      endTime,
+    } = req.body;
+
+    // Validate required fields
+    if (
+      !studioId ||
+      !customerName?.trim() ||
+      !customerEmail?.trim() ||
+      !bookingDate ||
+      !startTime ||
+      !endTime
+    ) {
+      return res.status(400).send({
+        message: "Please provide all booking information",
+      });
+    }
+
+    // Validate studio ID
+    if (!ObjectId.isValid(studioId)) {
+      return res.status(400).send({
+        message: "Invalid studio ID",
+      });
+    }
+
+    // Validate date and time formats
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)
+    ) {
+      return res.status(400).send({
+        message: "Invalid booking date or time",
+      });
+    }
+
+    if (endTime <= startTime) {
+      return res.status(400).send({
+        message: "End time must be after start time",
+      });
+    }
+
+    const db = client.db("studiospace");
+
+    const studioCollection = db.collection("studios");
+    const bookingCollection = db.collection("bookings");
+
+    // Find the studio
+    const studio = await studioCollection.findOne({
+      _id: new ObjectId(studioId),
+    });
+
+    if (!studio) {
+      return res.status(404).send({
+        message: "Studio not found",
+      });
+    }
+
+    // Check for overlapping bookings
+    const existingBooking = await bookingCollection.findOne({
+      studioId,
+      bookingDate,
+      status: { $in: ["Pending", "Confirmed"] },
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime },
+    });
+
+    if (existingBooking) {
+      return res.status(409).send({
+        message: "This time slot is already booked",
+      });
+    }
+
+    // Calculate total rental price
+    const start = startTime.split(":").map(Number);
+    const end = endTime.split(":").map(Number);
+
+    const startMinutes = start[0] * 60 + start[1];
+    const endMinutes = end[0] * 60 + end[1];
+
+    const bookedHours = (endMinutes - startMinutes) / 60;
+
+    const totalPrice = bookedHours * Number(studio.hourlyRate);
+
+    if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
+      return res.status(400).send({
+        message: "Invalid studio rental price",
+      });
+    }
+
+    // Create booking document
+    const bookingData = {
+      studioId,
+      studioTitle: studio.title,
+      customerName: customerName.trim(),
+      customerEmail: customerEmail.trim().toLowerCase(),
+      bookingDate,
+      startTime,
+      endTime,
+      totalPrice,
+      status: "Pending",
+      createdAt: new Date(),
+    };
+
+    const result = await bookingCollection.insertOne(bookingData);
+
+    res.status(201).send({
+      message: "Booking created successfully",
+      insertedId: result.insertedId,
+      booking: bookingData,
+    });
+
+  } catch (error) {
+    console.error("Booking error:", error);
+
+    res.status(500).send({
+      message: "Failed to create booking",
+    });
+  }
+});
+
 
 
 
