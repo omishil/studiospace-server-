@@ -335,7 +335,37 @@ app.post("/bookings", async (req, res) => {
 
 
 
+// Get bookings for a specific customer
+app.get("/bookings", async (req, res) => {
+  try {
+    const { email } = req.query;
 
+    if (!email) {
+      return res.status(400).send({
+        message: "Customer email is required",
+      });
+    }
+
+    const db = client.db("studiospace");
+    const bookingCollection = db.collection("bookings");
+
+    const bookings = await bookingCollection
+      .find({
+        customerEmail: email.trim().toLowerCase(),
+      })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.send(bookings);
+
+  } catch (error) {
+    console.error("Fetch bookings error:", error);
+
+    res.status(500).send({
+      message: "Failed to fetch bookings",
+    });
+  }
+});
 
 
 app.listen(port, () => {
