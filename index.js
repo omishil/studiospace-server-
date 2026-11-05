@@ -368,6 +368,60 @@ app.get("/bookings", async (req, res) => {
 });
 
 
+// Cancel a pending booking
+app.patch("/bookings/:id/cancel", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body;
+
+    // Validate booking ID
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({
+        message: "Invalid booking ID",
+      });
+    }
+
+    if (!email) {
+      return res.status(400).send({
+        message: "Customer email is required",
+      });
+    }
+
+    const db = client.db("studiospace");
+    const bookingCollection = db.collection("bookings");
+
+    const result = await bookingCollection.updateOne(
+      {
+        _id: new ObjectId(id),
+        customerEmail: email.trim().toLowerCase(),
+        status: "Pending",
+      },
+      {
+        $set: {
+          status: "Cancelled",
+        },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).send({
+        message: "Pending booking not found",
+      });
+    }
+
+    res.send({
+      message: "Booking cancelled successfully",
+    });
+
+  } catch (error) {
+    console.error("Cancel booking error:", error);
+
+    res.status(500).send({
+      message: "Failed to cancel booking",
+    });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
 })
