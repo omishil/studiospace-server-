@@ -3,11 +3,46 @@ import 'dotenv/config'
 import cors from "cors";
 import { MongoClient, ObjectId } from 'mongodb';
 const app = express();
-
+import axios from "axios";
+import multer from "multer";
+import FormData from "form-data";
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 app.use(cors({
   origin: "http://localhost:3000",
 }));
+// imbb 
+app.post("/upload-image", upload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).send({ message: "No image uploaded" });
+    }
 
+    const imageBase64 = req.file.buffer.toString("base64");
+
+    const formData = new FormData();
+    formData.append("image", imageBase64);
+
+    const response = await axios.post(
+      "https://api.imgbb.com/1/upload",
+      formData,
+      {
+        params: {
+          key: process.env.IMGBB_API_KEY,
+        },
+        headers: formData.getHeaders(),
+      }
+    );
+
+    res.send({
+      message: "Image uploaded successfully",
+      imageUrl: response.data.data.url,
+    });
+  } catch (error) {
+    console.error(error.response?.data || error.message);
+    res.status(500).send({ message: "Image upload failed" });
+  }
+});
 app.use(express.json());const port = 5000
 
 const client = new MongoClient(process.env.MONGODB_URL);
