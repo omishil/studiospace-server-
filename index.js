@@ -6,11 +6,48 @@ const app = express();
 import axios from "axios";
 import multer from "multer";
 import FormData from "form-data";
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 app.use(cors({
   origin: "http://localhost:3000",
 }));
+
+// verify api
+const verifyToken= async(req,res,next)=>{
+  const authHeader= req.headers.authorization
+  // console.log(authHeader);
+  if(!authHeader){
+        return res.status(401).send({msg: 'Unauthorized'})
+
+  }
+const token = authHeader.split(" ")[1]
+  console.log(token);
+
+
+if(!token){
+  return res.status(401).send({ msg: "Unauthorized! "})
+}
+
+const JWKS = createRemoteJWKSet(new URL(`http://localhost:3000/api/auth/jwks`))
+
+
+try{
+  const {payload} = await jwtVerify(token, JWKS) 
+// console.log(payload);
+  next()
+
+}
+catch(error){
+  return res.status(401).send({msg: "Server Error"})
+}
+
+}
+
+
+
+
+
 // imbb 
 app.post("/upload-image", upload.single("image"), async (req, res) => {
   try {
@@ -62,7 +99,7 @@ app.get('/', (req, res) => {
   res.send('Hello World!')
 })
 // get form data addstudio
-app.post("/add-studio", async (req, res) => {
+app.post("/add-studio",verifyToken,async (req, res) => {
   const studioData = req.body;
 
   const db = client.db("studiospace");
@@ -114,7 +151,7 @@ app.get("/my-listings/:email", async (req, res) => {
 
 // for studio details
 // Get a single studio by ID
-app.get("/studios/:id", async (req, res) => {
+app.get("/studios/:id", verifyToken,async (req, res) => {
   const { id } = req.params;
 
   // Check if the ID is valid
@@ -142,7 +179,7 @@ app.get("/studios/:id", async (req, res) => {
 
 // get updated info and update in mongodb
 
-app.patch("/studios/:id", async (req, res) => {
+app.patch("/studios/:id",verifyToken, async (req, res) => {
   const { id } = req.params;
   const updatedStudio = req.body;
 
@@ -158,7 +195,7 @@ app.patch("/studios/:id", async (req, res) => {
 });
 // delete a studio from listing
 
-app.delete("/studios/:id", async (req, res) => {
+app.delete("/studios/:id",verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { email } = req.query;
@@ -205,7 +242,7 @@ app.delete("/studios/:id", async (req, res) => {
 });
 
 // Create a new booking
-app.post("/bookings", async (req, res) => {
+app.post("/bookings",verifyToken, async (req, res) => {
   try {
     const {
       studioId,
